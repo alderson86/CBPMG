@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sistema de Auditoria CBMMG</title>
+  <style>
+    :root {
+      --primary: #1e3a8a;
+      --primary-dark: #172554;
+      --bg-main: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      
+      --success: #10b981;
+      --danger: #ef4444;
+      --neutral: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg-main);
+      color: var(--text-main);
+      font-size: 16px;
+      padding-bottom: 75px; /* Espaço para a barra inferior */
+    }
+
+    /* Topo Fixo com Progresso */
+    .header-sticky {
+      position: sticky;
+      top: 0;
+      background: var(--primary);
+      color: white;
+      padding: 14px 16px;
+      z-index: 10;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .header-sticky h1 { font-size: 1.1rem; font-weight: 600; text-align: center; }
+    .progress-container {
+      background: rgba(255,255,255,0.2);
+      height: 6px;
+      border-radius: 3px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      background: var(--success);
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* Conteúdos */
+    .content { display: none; padding: 16px; max-width: 600px; margin: 0 auto; }
+    .content.active { display: block; }
+
+    h2 { font-size: 1.3rem; margin-bottom: 16px; color: var(--primary-dark); }
+
+    /* Cards do Checklist */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+      transition: all 0.2s ease;
+    }
+    .card h3 { font-size: 1rem; font-weight: 600; line-height: 1.4; margin-bottom: 12px; }
+
+    /* Botões de Status (Estilo Filtro/Tags) */
+    .status-group { display: flex; gap: 8px; margin-bottom: 12px; }
+    .btn-status {
+      flex: 1;
+      padding: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 2px solid var(--border);
+      background: #fff;
+      color: var(--text-muted);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    /* Estados ativos dos botões */
+    .card[data-status="Conforme"] { border-left: 5px solid var(--success); }
+    .card[data-status="Conforme"] .btn-status.ok { background: var(--success); color: white; border-color: var(--success); }
+
+    .card[data-status="Reajuste"] { border-left: 5px solid var(--danger); }
+    .card[data-status="Reajuste"] .btn-status.ajuste { background: var(--danger); color: white; border-color: var(--danger); }
+
+    .card[data-status="N/A"] { border-left: 5px solid var(--neutral); }
+    .card[data-status="N/A"] .btn-status.na { background: var(--neutral); color: white; border-color: var(--neutral); }
+
+    /* Campos extras expansíveis (só aparecem se houver interação) */
+    .card-details { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    
+    input[type="number"], input[type="text"], textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      background: #fafafa;
+    }
+    input:focus, textarea:focus { outline: none; border-color: var(--primary); background: #fff; }
+
+    /* Estilização do Input de Imagem/Foto */
+    .file-input-wrapper {
+      position: relative;
+      background: #f1f5f9;
+      border: 1px dashed var(--neutral);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .file-input-wrapper input[type="file"] {
+      position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer;
+    }
+
+    /* Botão de Ação Fixo Inferior (Acima da Tab) */
+    .action-container { padding: 0 16px 16px 16px; }
+    .btn-main {
+      background: var(--primary);
+      color: white;
+      font-weight: 600;
+      font-size: 1rem;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      width: 100%;
+      box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2);
+    }
+
+    /* Histórico */
+    .history-card {
+      background: white; padding: 14px; border-radius: 10px; 
+      margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+      border: 1px solid var(--border);
+    }
+    .badge { padding: 4px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
+    .badge.success { background: #d1fae5; color: #065f46; }
+    .badge.danger { background: #fee2e2; color: #991b1b; }
+
+    /* Barra de Navegação Inferior (Estilo App) */
+    .nav-tabs {
+      display: flex;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #ffffff;
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.04);
+      z-index: 10;
+    }
+    .nav-tab {
+      flex: 1;
+      padding: 12px 0;
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .nav-tab.active { color: var(--primary); font-weight: 600; }
+    .nav-tab-icon { font-size: 1.2rem; }
+
+    @media(min-width: 768px) {
+      body { padding-bottom: 0; padding-top: 0; }
+      .nav-tabs { top: 0; bottom: auto; height: 60px; box-shadow: none; border-bottom: 1px solid var(--border); }
+      .header-sticky { top: 60px; }
+      .content { margin-top: 60px; padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header-sticky">
+  <h1>Auditoria CBMMG</h1>
+  <div class="progress-container">
+    <div id="progressBar" class="progress-bar"></div>
+  </div>
+</div>
+
+<div id="auditoria" class="content active">
+  <h2>Checklist de Inspeção</h2>
+  <div id="checklistList"></div>
+  <div class="action-container">
+    <button class="btn-main" onclick="gerarRelatorio()">Finalizar e Gerar PDF</button>
+  </div>
+</div>
+
+<div id="historico" class="content">
+  <h2>Histórico de Relatórios</h2>
+  <div id="historyList"></div>
+</div>
+
+<div id="dashboard" class="content">
+  <h2>Dashboard</h2>
+  <div class="card" style="text-align:center; padding: 40px var(--text-muted);">
+    <canvas id="chart"></canvas>
+    <p style="margin-top:10px; color:var(--text-muted);">Gráficos de conformidade</p>
+  </div>
+</div>
+
+<div class="nav-tabs">
+  <div class="nav-tab active" onclick="openTab('auditoria', this)">
+    <span class="nav-tab-icon">📋</span>
+    <span>Auditoria</span>
+  </div>
+  <div class="nav-tab" onclick="openTab('historico', this)">
+    <span class="nav-tab-icon">📜</span>
+    <span>Histórico</span>
+  </div>
+  <div class="nav-tab" onclick="openTab('dashboard', this)">
+    <span class="nav-tab-icon">📊</span>
+    <span>Dashboard</span>
+  </div>
+</div>
+
+<script>
+const itens = [
+  'Projeto de incêndio aprovado (PSCIP/PT/PTS)', 'AVCB/CLCB anterior', 'ART/RRT responsáveis técnicos',
+  'Laudo SPDA', 'Laudo instalações elétricas', 'Laudo estanqueidade de gás', 'Laudo sistema de pressurização',
+  'Laudo hidrantes/bombas', 'Cadastro atualizado INFOSCIP', 'Conformidade atividade declarada',
+  'Extintores - Quantidade correta', 'Extintores - Tipo adequado', 'Extintores - Distribuição correta',
+  'Extintores - Sinalização', 'Extintores - Lacre intacto', 'Extintores - Carga válida',
+  'Extintores - Pressurização correta', 'Extintores - Fácil acesso', 'Extintores - Altura correta',
+  'Sinalização rota de fuga', 'Sinalização de saída', 'Identificação extintores/hidrantes',
+  'Placas fotoluminescentes', 'Tamanho e padrão', 'Visibilidade sem obstáculos', 'Iluminação funcionamento',
+  'Autonomia mínima', 'Distribuição adequada', 'Luminárias estratégicas', 'Bateria funcionando',
+  'Rotas largura mínima', 'Portas desobstruídas', 'Sentido abertura', 'Barras antipânico',
+  'Corredores livres', 'Distância máxima fuga', 'Escadas desimpedidas', 'Hidrantes abrigo identificado',
+  'Mangueiras em bom estado', 'Esguichos presentes', 'Registro operacional', 'Pressão adequada',
+  'Teste funcional', 'Reserva técnica incêndio', 'Central alarme funcionando', 'Acionadores manuais',
+  'Sirenes audíveis', 'Detectores instalados', 'Sprinklers desobstruídos', 'GLP abrigo correto',
+  'GLP ventilação adequada', 'GLP sem vazamentos', 'Quadro elétrico identificado', 'Sem improvisos elétricos',
+  'Sem sobrecarga', 'Aterramento', 'Brigada treinamento válido', 'Lista nominal brigada',
+  'Materiais inflamáveis corretos', 'Compartimentação corta-fogo', 'Acesso externo livre',
+  'Entradas técnicas identificadas', 'Área para viaturas', 'Conformidade uso real imóvel',
+  'Extintor vencido', 'Placa errada ou faltando', 'Luz emergência funcionando', 'Porta saída destrancada',
+  'Rota desobstruída', 'Layout atualizado', 'Laudos presentes e válidos'
+];
+
+let auditorias = [];
+let statusData = {};
+
+function openTab(id, element) {
+  document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  
+  document.getElementById(id).classList.add('active');
+  element.classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function renderAuditoria() {
+  let html = '';
+  itens.forEach((item, i) => {
+    const safeId = `item-${i}`;
+    html += `
+      <div class="card" id="card-${safeId}" data-status="Pendente">
+        <h3>${i + 1}. ${item}</h3>
+        
+        <div class="status-group">
+          <button class="btn-status ok" onclick="setStatus('${safeId}', '${item}', 'Conforme')">Conforme</button>
+          <button class="btn-status ajuste" onclick="setStatus('${safeId}', '${item}', 'Reajuste')">Inconforme</button>
+          <button class="btn-status na" onclick="setStatus('${safeId}', '${item}', 'N/A')">N/A</button>
+        </div>
+
+        <div class="card-details">
+          <div style="display:flex; gap:8px;">
+            <input type="number" placeholder="Qtd" style="width: 80px;">
+            <input type="text" placeholder="Tipo / Especificação detalhada">
+          </div>
+          <div class="file-input-wrapper">
+            <span>📷 Anexar Foto Evidência</span>
+            <input type="file" accept="image/*" capture="environment">
+          </div>
+          <textarea placeholder="Observações e detalhes técnicos..." rows="2"></textarea>
+        </div>
+      </div>
+    `;
+  });
+  document.getElementById('checklistList').innerHTML = html;
+  atualizarProgresso();
+}
+
+function setStatus(safeId, item, val) {
+  statusData[item] = val;
+  const card = document.getElementById(`card-${safeId}`);
+  card.setAttribute('data-status', val);
+  atualizarProgresso();
+}
+
+function atualizarProgresso() {
+  const respondidos = Object.keys(statusData).length;
+  const total = itens.length;
+  const porcentagem = (respondidos / total) * 100;
+  document.getElementById('progressBar').style.width = `${porcentagem}%`;
+}
+
+function gerarRelatorio() {
+  if (Object.keys(statusData).length < itens.length) {
+    alert(`Atenção: Você respondeu ${Object.keys(statusData).length} de ${itens.length} itens. É necessário responder todos antes de fechar.`); 
+    return;
+  }
+  
+  let ajustes = Object.entries(statusData).filter(([k, v]) => v === 'Reajuste').map(([k]) => k);
+  let relatorio = { data: new Date().toLocaleDateString('pt-BR'), ajustes };
+  auditorias.push(relatorio);
+  renderHistorico();
+  
+  let texto = '=========================================\n';
+  texto += '      RELATÓRIO DE CONFORMIDADE CBMMG    \n';
+  texto += '=========================================\n\n';
+  texto += 'Data de Emissão: ' + relatorio.data + '\n\n';
+  
+  if (ajustes.length) {
+    texto += '🚨 ITENS NÃO CONFORMES (Prazo de adequação: 90 dias):\n';
+    texto += '-------------------------------------------------\n';
+    ajustes.forEach((item, idx) => {
+      texto += `[ ] ${idx + 1}. ${item}\n`;
+    });
+  } else {
+    texto += '✅ TODOS OS ITENS CONFORMES. CERTIFICADO EMITIDO COM SUCESSO.';
+  }
+  
+  let win = window.open('');
+  win.document.write('<pre style="font-family:monospace; padding:20px; font-size:14px;">' + texto + '</pre>');
+  win.print();
+}
+
+function renderHistorico() {
+  const container = document.getElementById('historyList');
+  if(auditorias.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Nenhum relatório gerado ainda.</p>';
+    return;
+  }
+  
+  container.innerHTML = auditorias.map(a => `
+    <div class="history-card">
+      <div>
+        <strong style="font-size:0.95rem;">Inspeção Predial</strong><br>
+        <span style="font-size:0.8rem; color:var(--text-muted);">${a.data}</span>
+      </div>
+      <span class="badge ${a.ajustes.length ? 'danger' : 'success'}">
+        ${a.ajustes.length ? `${a.ajustes.length} Pendência(s)` : 'Regularizado'}
+      </span>
+    </div>
+  `).join('');
+}
+
+// Inicialização
+renderAuditoria();
+renderHistorico();
+</script>
+
+</body>
+</html>
